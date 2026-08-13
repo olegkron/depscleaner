@@ -26,7 +26,6 @@ depscleaner [path] [options]
 | `path`       | Root directory to scan (default: current directory)     |
 | `--depth N`  | Maximum nesting depth to scan (default: 3)              |
 | `--dry-run`  | Show what would be deleted without deleting anything    |
-| `-y, --yes`  | Skip the interactive confirmation prompt                |
 | `--version`  | Show the version                                         |
 
 ## Examples
