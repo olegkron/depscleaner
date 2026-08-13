@@ -1,10 +1,12 @@
 # depscleaner/cleaner.py
 
+import argparse
 import logging
 import os
 import re
 import shutil
 
+from . import __version__
 from .utils import calculate_directory_size, get_human_readable_size
 from .validator import validate_directory, validate_depth
 
@@ -80,3 +82,20 @@ class DepsCleaner:
 
     def delete_folder(self, path):
         shutil.rmtree(path)
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        prog='depscleaner',
+        description='Find and remove dependency folders like node_modules.',
+    )
+    parser.add_argument('path', nargs='?', default='.', help='Root directory to scan (default: current directory)')
+    parser.add_argument('--depth', type=int, default=DepsCleaner.DEFAULT_DEPTH,
+                        help='Maximum nesting depth to scan (default: %(default)s)')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Show what would be deleted without deleting anything')
+    parser.add_argument('-y', '--yes', action='store_true',
+                        help='Skip the interactive confirmation prompt')
+    parser.add_argument('--version', action='version',
+                        version=f'%(prog)s {__version__}')
+    return parser
