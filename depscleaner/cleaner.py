@@ -17,11 +17,10 @@ class DepsCleaner:
     DEFAULT_DEPTH = 3
     DEPENDENCY_FOLDERS_REGEX = [r'node_modules', r'vendor']  # Add more regex patterns as needed
 
-    def __init__(self, path='.', depth=DEFAULT_DEPTH, dry_run=False, yes=False):
+    def __init__(self, path='.', depth=DEFAULT_DEPTH, dry_run=False):
         self.path = path
         self.depth = depth
         self.dry_run = dry_run
-        self.yes = yes
         self.found_folders = []
 
     def run(self):
@@ -72,14 +71,12 @@ class DepsCleaner:
             print("No dependency folders found.")
             return
 
-        indices = self._ask_for_indices()
-
-        if not self.yes:
-            paths = '\n'.join(f"[{i}] {self.found_folders[i]['path']}" for i in indices)
-            confirm = input(f"Delete these {len(indices)} folder(s)?\n{paths}\n[y/N] ").strip().lower()
-            if confirm not in ('y', 'yes'):
-                print("Aborted.")
-                return
+        indices = self._select_indices()
+        if indices is None:
+            return
+        if not indices:
+            print("No folders selected — nothing to delete.")
+            return
 
         total_deleted_size = 0
         for i in indices:
@@ -93,25 +90,43 @@ class DepsCleaner:
 
         print(f"Total space freed: {get_human_readable_size(total_deleted_size)}")
 
-    def _ask_for_indices(self):
+    def _select_indices(self):
         total = len(self.found_folders)
+        selected = set()
         while True:
-            raw = input("Enter the indices of folders to delete (separated by space): ").strip()
-            if not raw:
-                print("No indices entered.")
+            display = ' '.join(str(i) for i in sorted(selected)) if selected else 'none'
+            print(f"Selected: {display}")
+            raw = input("Command (numbers to toggle, 'all', 'none', 'done', 'quit'): ").strip().lower()
+            if raw in ('', 'done'):
+                return sorted(selected)
+            if raw in ('quit', 'q'):
+                print("Aborted.")
+                return None
+            if raw == 'all':
+                selected = set(range(total))
                 continue
-            try:
-                indices = [int(part) for part in raw.split()]
-            except ValueError:
-                print("Invalid input — enter space-separated numbers.")
+            if raw == 'none':
+                selected = set()
                 continue
-            valid = sorted(set(i for i in indices if 0 <= i < total))
-            invalid = sorted(set(i for i in indices if not (0 <= i < total)))
+            parts = raw.split()
+            indices = []
+            invalid = []
+            for part in parts:
+                try:
+                    indices.append(int(part))
+                except ValueError:
+                    invalid.append(part)
             if invalid:
-                print(f"Ignoring out-of-range indices: {invalid}")
-            if not valid:
-                continue
-            return valid
+                print(f"Ignoring invalid inputs: {invalid}")
+            out_of_range = [i for i in indices if not (0 <= i < total)]
+            if out_of_range:
+                print(f"Ignoring out-of-range indices: {out_of_range}")
+            for i in indices:
+                if 0 <= i < total:
+                    if i in selected:
+                        selected.discard(i)
+                    else:
+                        selected.add(i)
 
     def delete_folder(self, path):
         shutil.rmtree(path)

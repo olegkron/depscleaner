@@ -116,35 +116,82 @@ def test_version_flag(capsys):
     assert 'depscleaner' in capsys.readouterr().out
 
 
+def patch_input(monkeypatch, inputs):
+    it = iter(inputs)
+    monkeypatch.setattr('builtins.input', lambda _: next(it))
+
+
 def test_run_does_not_prompt_when_nothing_found(tmp_path, monkeypatch):
     monkeypatch.setattr('builtins.input', lambda _: pytest.fail('must not prompt'))
     DepsCleaner(path=str(tmp_path)).run()
 
 
-def test_run_yes_deletes_selected(tmp_path, monkeypatch, capsys):
+def test_run_toggle_loop_deletes_selected(tmp_path, monkeypatch, capsys):
     root = sample_project(tmp_path)
-    monkeypatch.setattr('builtins.input', lambda _: '0')
-    DepsCleaner(path=str(root), yes=True).run()
+    patch_input(monkeypatch, ['0', 'done'])
+    DepsCleaner(path=str(root)).run()
     assert not (root / 'app' / 'node_modules').exists()
     assert (root / 'app' / 'vendor').exists()
     assert 'Total space freed' in capsys.readouterr().out
 
 
-def test_run_retries_on_invalid_indices(tmp_path, monkeypatch):
+def test_run_toggle_number_twice_deselects(tmp_path, monkeypatch):
     root = sample_project(tmp_path)
-    inputs = iter(['abc', '0 1'])
-    monkeypatch.setattr('builtins.input', lambda _: next(inputs))
-    DepsCleaner(path=str(root), yes=True).run()
-    assert not (root / 'app' / 'node_modules').exists()
+    patch_input(monkeypatch, ['0', '0', 'done'])
+    DepsCleaner(path=str(root)).run()
+    assert (root / 'app' / 'node_modules').exists()
+    assert (root / 'app' / 'vendor').exists()
+
+
+def test_run_all_then_deselect_one(tmp_path, monkeypatch):
+    root = sample_project(tmp_path)
+    patch_input(monkeypatch, ['all', '0', 'done'])
+    DepsCleaner(path=str(root)).run()
+    assert (root / 'app' / 'node_modules').exists()
     assert not (root / 'app' / 'vendor').exists()
 
 
-def test_run_aborts_without_confirmation(tmp_path, monkeypatch):
+def test_run_none_clears_selection(tmp_path, monkeypatch):
     root = sample_project(tmp_path)
-    inputs = iter(['0', 'n'])
-    monkeypatch.setattr('builtins.input', lambda _: next(inputs))
+    patch_input(monkeypatch, ['all', 'none', 'done'])
     DepsCleaner(path=str(root)).run()
     assert (root / 'app' / 'node_modules').exists()
+    assert (root / 'app' / 'vendor').exists()
+
+
+def test_run_done_with_empty_selection_deletes_nothing(tmp_path, monkeypatch, capsys):
+    root = sample_project(tmp_path)
+    patch_input(monkeypatch, [''])
+    DepsCleaner(path=str(root)).run()
+    assert (root / 'app' / 'node_modules').exists()
+    assert (root / 'app' / 'vendor').exists()
+    assert 'No folders selected' in capsys.readouterr().out
+
+
+def test_run_quit_aborts(tmp_path, monkeypatch):
+    root = sample_project(tmp_path)
+    patch_input(monkeypatch, ['0', 'quit'])
+    DepsCleaner(path=str(root)).run()
+    assert (root / 'app' / 'node_modules').exists()
+    assert (root / 'app' / 'vendor').exists()
+
+
+def test_run_invalid_input_reprompts(tmp_path, monkeypatch, capsys):
+    root = sample_project(tmp_path)
+    patch_input(monkeypatch, ['banana', '0', 'done'])
+    DepsCleaner(path=str(root)).run()
+    assert not (root / 'app' / 'node_modules').exists()
+    assert (root / 'app' / 'vendor').exists()
+    assert 'Ignoring invalid inputs' in capsys.readouterr().out
+
+
+def test_run_out_of_range_indices_ignored(tmp_path, monkeypatch, capsys):
+    root = sample_project(tmp_path)
+    patch_input(monkeypatch, ['99', '0', 'done'])
+    DepsCleaner(path=str(root)).run()
+    assert not (root / 'app' / 'node_modules').exists()
+    assert (root / 'app' / 'vendor').exists()
+    assert 'Ignoring out-of-range indices' in capsys.readouterr().out
 
 
 def test_run_dry_run_deletes_nothing(tmp_path, capsys):
