@@ -1,7 +1,7 @@
 # depscleaner/__main__.py
 
 import sys
-from .depscleaner import DepsCleaner
+from .cleaner import DepsCleaner
 
 def main():
     try:
