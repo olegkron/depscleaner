@@ -4,24 +4,35 @@ Depscleaner is a CLI tool for finding and removing dependency directories like `
 
 ## Features
 
-- [x] Easy to add & change directories regex
-- [x] Error logging to file
-- [x] Shows total space freed
+- Easy to add & change directory regexes (`DEPENDENCY_FOLDERS_REGEX` in `depscleaner/cleaner.py`)
+- Error logging to `~/.cache/depscleaner/depscleaner.log`
+- Dry-run mode to preview before deleting
+- Interactive confirmation before any deletion
 
 ## Installation
 
-To install Depscleaner, use pip:
 ```bash
-pip install depscleaner
+pip install .
 ```
 
 ## Usage
 
 ```bash
-depscleaner <dir>
+depscleaner [path] [options]
 ```
 
-## Example
+| Option       | Description                                             |
+| ------------ | ------------------------------------------------------- |
+| `path`       | Root directory to scan (default: current directory)     |
+| `--depth N`  | Maximum nesting depth to scan (default: 3)              |
+| `--dry-run`  | Show what would be deleted without deleting anything    |
+| `-y, --yes`  | Skip the interactive confirmation prompt                |
+| `--version`  | Show the version                                         |
+
+## Examples
+
 ```bash
 depscleaner ~/projects
+depscleaner ~/projects --depth 5
+depscleaner ~/projects --dry-run
 ```
