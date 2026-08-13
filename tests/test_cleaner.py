@@ -65,3 +65,24 @@ def test_find_folders_does_not_follow_symlinks(tmp_path):
 
 def test_cleaner_default_depth_is_three():
     assert DepsCleaner.DEFAULT_DEPTH == 3
+
+
+def test_delete_folder_removes_tree(tmp_path):
+    dep = tmp_path / 'deps'
+    (dep / 'a' / 'b').mkdir(parents=True)
+    (dep / 'a' / 'f.txt').write_text('x')
+    DepsCleaner().delete_folder(str(dep))
+    assert not dep.exists()
+
+
+def test_delete_folder_does_not_follow_symlinks(tmp_path):
+    dep = tmp_path / 'deps'
+    dep.mkdir()
+    real = tmp_path / 'real'
+    real.mkdir()
+    (real / 'keep.txt').write_text('keep')
+    (dep / 'link').symlink_to(real, target_is_directory=True)
+    DepsCleaner().delete_folder(str(dep))
+    assert not dep.exists()
+    assert real.exists()
+    assert (real / 'keep.txt').exists()

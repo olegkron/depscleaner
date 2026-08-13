@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import shutil
 
 from .utils import calculate_directory_size, get_human_readable_size
 from .validator import validate_directory, validate_depth
@@ -69,7 +70,7 @@ class DepsCleaner:
             if 0 <= i < len(self.found_folders):
                 folder = self.found_folders[i]
                 try:
-                    self.recursive_delete(folder['path'])
+                    self.delete_folder(folder['path'])
                     print(f"Deleted {folder['path']}")
                     total_deleted_size += folder['size']
                 except Exception as e:
@@ -77,10 +78,5 @@ class DepsCleaner:
 
         print(f"Total space freed: {get_human_readable_size(total_deleted_size)}")
 
-    def recursive_delete(self, path):
-        for entry in os.scandir(path):
-            if entry.is_dir():
-                self.recursive_delete(entry.path)
-            else:
-                os.unlink(entry.path)
-        os.rmdir(path)
+    def delete_folder(self, path):
+        shutil.rmtree(path)
