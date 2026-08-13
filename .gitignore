@@ -5,3 +5,4 @@ dist
 build
 depscleaner.egg-info
 .serena/
+.venv/
