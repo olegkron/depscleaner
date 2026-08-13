@@ -2,9 +2,9 @@
 
 import os
 import re
-from utils import calculate_directory_size, get_human_readable_size
-from validator import validate_directory, validate_depth
-from logger import log_error
+from .utils import calculate_directory_size, get_human_readable_size
+from .validator import validate_directory, validate_depth
+from .logger import log_error
 
 
 class DepsCleaner:
