@@ -7,7 +7,8 @@ Depscleaner is a CLI tool for finding and removing dependency directories like `
 - Easy to add & change directory regexes (`DEPENDENCY_FOLDERS_REGEX` in `depscleaner/cleaner.py`)
 - Error logging to `~/.cache/depscleaner/depscleaner.log`
 - Dry-run mode to preview before deleting
-- Interactive confirmation before any deletion
+- Arrow-key interactive selection: move with arrows, toggle with `space`, confirm with `enter`, quit with `q`/`esc`
+  (falls back to a numeric prompt when stdin is not a TTY, e.g. piped or CI)
 
 ## Installation
 

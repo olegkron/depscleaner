@@ -5,6 +5,9 @@ import logging
 import os
 import re
 import shutil
+import sys
+
+from simple_term_menu import TerminalMenu
 
 from . import __version__
 from .utils import calculate_directory_size, get_human_readable_size
@@ -91,42 +94,43 @@ class DepsCleaner:
         print(f"Total space freed: {get_human_readable_size(total_deleted_size)}")
 
     def _select_indices(self):
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            return self._ask_for_indices_numeric()
+        return self._ask_with_menu()
+
+    def _ask_with_menu(self):
+        options = [
+            f"[{i}] {folder['path']} ({get_human_readable_size(folder['size'])})"
+            for i, folder in enumerate(self.found_folders)
+        ]
+        menu = TerminalMenu(
+            options,
+            multi_select=True,
+            show_multi_select_hint=True,
+        )
+        selected = menu.show()
+        if selected is None:
+            print("Aborted.")
+            return None
+        return sorted(selected)
+
+    def _ask_for_indices_numeric(self):
         total = len(self.found_folders)
-        selected = set()
         while True:
-            display = ' '.join(str(i) for i in sorted(selected)) if selected else 'none'
-            print(f"Selected: {display}")
-            raw = input("Command (numbers to toggle, 'all', 'none', 'done', 'quit'): ").strip().lower()
-            if raw in ('', 'done'):
-                return sorted(selected)
-            if raw in ('quit', 'q'):
-                print("Aborted.")
+            raw = input("Enter indices to delete (space-separated, empty to abort): ").strip()
+            if not raw:
                 return None
-            if raw == 'all':
-                selected = set(range(total))
+            try:
+                indices = [int(part) for part in raw.split()]
+            except ValueError:
+                print("Invalid input — enter space-separated numbers.")
                 continue
-            if raw == 'none':
-                selected = set()
-                continue
-            parts = raw.split()
-            indices = []
-            invalid = []
-            for part in parts:
-                try:
-                    indices.append(int(part))
-                except ValueError:
-                    invalid.append(part)
+            valid = sorted(set(i for i in indices if 0 <= i < total))
+            invalid = sorted(set(i for i in indices if not (0 <= i < total)))
             if invalid:
-                print(f"Ignoring invalid inputs: {invalid}")
-            out_of_range = [i for i in indices if not (0 <= i < total)]
-            if out_of_range:
-                print(f"Ignoring out-of-range indices: {out_of_range}")
-            for i in indices:
-                if 0 <= i < total:
-                    if i in selected:
-                        selected.discard(i)
-                    else:
-                        selected.add(i)
+                print(f"Ignoring out-of-range indices: {invalid}")
+            if valid:
+                return valid
 
     def delete_folder(self, path):
         shutil.rmtree(path)

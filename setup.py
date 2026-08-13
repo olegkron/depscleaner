@@ -8,6 +8,9 @@ setup(
     author='Oleg Kron',
     description='A tool to clean up dependency folders in projects',
     packages=find_packages(),
+    install_requires=[
+        'simple-term-menu>=1.6',
+    ],
     entry_points={
         'console_scripts': [
             'depscleaner=depscleaner.__main__:main',
