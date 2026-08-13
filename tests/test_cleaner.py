@@ -95,17 +95,15 @@ def test_build_parser_defaults():
     assert args.path == '.'
     assert args.depth == DepsCleaner.DEFAULT_DEPTH
     assert args.dry_run is False
-    assert args.yes is False
 
 
 def test_build_parser_parses_flags():
     from depscleaner.cleaner import build_parser
 
-    args = build_parser().parse_args(['/tmp/foo', '--depth', '5', '--dry-run', '--yes'])
+    args = build_parser().parse_args(['/tmp/foo', '--depth', '5', '--dry-run'])
     assert args.path == '/tmp/foo'
     assert args.depth == 5
     assert args.dry_run is True
-    assert args.yes is True
 
 
 def test_version_flag(capsys):

@@ -23,7 +23,7 @@ def setup_logging():
 def main():
     setup_logging()
     args = build_parser().parse_args()
-    cleaner = DepsCleaner(path=args.path, depth=args.depth, dry_run=args.dry_run, yes=args.yes)
+    cleaner = DepsCleaner(path=args.path, depth=args.depth, dry_run=args.dry_run)
     cleaner.run()
 
 

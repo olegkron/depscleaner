@@ -142,8 +142,6 @@ def build_parser():
                         help='Maximum nesting depth to scan (default: %(default)s)')
     parser.add_argument('--dry-run', action='store_true',
                         help='Show what would be deleted without deleting anything')
-    parser.add_argument('-y', '--yes', action='store_true',
-                        help='Skip the interactive confirmation prompt')
     parser.add_argument('--version', action='version',
                         version=f'%(prog)s {__version__}')
     return parser
