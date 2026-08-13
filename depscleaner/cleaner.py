@@ -1,28 +1,33 @@
-# depscleaner/depscleaner.py
+# depscleaner/cleaner.py
 
+import logging
 import os
 import re
+
 from .utils import calculate_directory_size, get_human_readable_size
 from .validator import validate_directory, validate_depth
-from .logger import log_error
+
+logger = logging.getLogger(__name__)
 
 
 class DepsCleaner:
     DEFAULT_DEPTH = 3
     DEPENDENCY_FOLDERS_REGEX = [r'node_modules', r'vendor']  # Add more regex patterns as needed
 
-    def __init__(self, args):
-        self.path = args[0] if args else '.'
-        self.depth = int(args[1]) if len(args) > 1 else self.DEFAULT_DEPTH
+    def __init__(self, path='.', depth=DEFAULT_DEPTH, dry_run=False, yes=False):
+        self.path = path
+        self.depth = depth
+        self.dry_run = dry_run
+        self.yes = yes
         self.found_folders = []
 
     def run(self):
         if not validate_directory(self.path):
-            log_error('Invalid directory path')
+            logger.error('Invalid directory path')
             return
 
         if not validate_depth(self.depth):
-            log_error('Invalid depth value')
+            logger.error('Invalid depth value')
             return
 
         self.find_folders(self.path, self.depth)
@@ -31,25 +36,29 @@ class DepsCleaner:
 
         self.prompt_deletion()
 
-    def find_folders(self, path, depth, current_depth=0):
+    def find_folders(self, path, depth):
         if depth == 0:
             return
-
         try:
-            for entry in os.scandir(path):
-                if entry.is_dir():
-                    dir_name = os.path.basename(entry.path)
-                    if any(re.match(pattern, dir_name) for pattern in self.DEPENDENCY_FOLDERS_REGEX):
-                        dir_size = calculate_directory_size(entry.path)
-                        self.found_folders.append({'path': entry.path, 'size': dir_size})
-                        index = len(self.found_folders) - 1
-                        print(f"[{index}] Found: {entry.path}, Size: {get_human_readable_size(dir_size)}")
-                        # Do not continue searching inside this folder
+            with os.scandir(path) as entries:
+                for entry in entries:
+                    if not entry.is_dir(follow_symlinks=False):
                         continue
-                    if current_depth < depth:
-                        self.find_folders(entry.path, depth - 1, current_depth + 1)
-        except Exception as e:
-            log_error(f"Error scanning directory {path}: {e}")
+                    if self.is_dependency_folder(entry.name):
+                        self.add_found_folder(entry.path)
+                    else:
+                        self.find_folders(entry.path, depth - 1)
+        except OSError as e:
+            logger.warning("Error scanning directory %s: %s", path, e)
+
+    def is_dependency_folder(self, name):
+        return any(re.fullmatch(pattern, name) for pattern in self.DEPENDENCY_FOLDERS_REGEX)
+
+    def add_found_folder(self, path):
+        size = calculate_directory_size(path)
+        self.found_folders.append({'path': path, 'size': size})
+        index = len(self.found_folders) - 1
+        print(f"[{index}] Found: {path}, Size: {get_human_readable_size(size)}")
 
     def prompt_deletion(self):
         indices = input("Enter the indices of folders to delete (separated by space): ")
@@ -64,7 +73,7 @@ class DepsCleaner:
                     print(f"Deleted {folder['path']}")
                     total_deleted_size += folder['size']
                 except Exception as e:
-                    log_error(f"Error deleting {folder['path']}: {e}")
+                    logger.error("Error deleting %s: %s", folder['path'], e)
 
         print(f"Total space freed: {get_human_readable_size(total_deleted_size)}")
 
@@ -75,7 +84,3 @@ class DepsCleaner:
             else:
                 os.unlink(entry.path)
         os.rmdir(path)
-if __name__ == "__main__":
-    import sys
-    cleaner = DepsCleaner(sys.argv[1:])
-    cleaner.run()
