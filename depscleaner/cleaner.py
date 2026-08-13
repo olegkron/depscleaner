@@ -26,16 +26,20 @@ class DepsCleaner:
 
     def run(self):
         if not validate_directory(self.path):
-            logger.error('Invalid directory path')
+            logger.error('Invalid directory path: %s', self.path)
             return
 
         if not validate_depth(self.depth):
-            logger.error('Invalid depth value')
+            logger.error('Invalid depth value: %s', self.depth)
             return
 
         self.find_folders(self.path, self.depth)
         total_size = sum(folder['size'] for folder in self.found_folders)
         print(f"Total potential space to be freed: {get_human_readable_size(total_size)}")
+
+        if self.dry_run:
+            print(f"Dry run — {len(self.found_folders)} folder(s) would be deleted, nothing removed.")
+            return
 
         self.prompt_deletion()
 
@@ -64,21 +68,50 @@ class DepsCleaner:
         print(f"[{index}] Found: {path}, Size: {get_human_readable_size(size)}")
 
     def prompt_deletion(self):
-        indices = input("Enter the indices of folders to delete (separated by space): ")
-        selected_indices = set(map(int, indices.split()))
+        if not self.found_folders:
+            print("No dependency folders found.")
+            return
+
+        indices = self._ask_for_indices()
+
+        if not self.yes:
+            paths = '\n'.join(f"[{i}] {self.found_folders[i]['path']}" for i in indices)
+            confirm = input(f"Delete these {len(indices)} folder(s)?\n{paths}\n[y/N] ").strip().lower()
+            if confirm not in ('y', 'yes'):
+                print("Aborted.")
+                return
 
         total_deleted_size = 0
-        for i in selected_indices:
-            if 0 <= i < len(self.found_folders):
-                folder = self.found_folders[i]
-                try:
-                    self.delete_folder(folder['path'])
-                    print(f"Deleted {folder['path']}")
-                    total_deleted_size += folder['size']
-                except Exception as e:
-                    logger.error("Error deleting %s: %s", folder['path'], e)
+        for i in indices:
+            folder = self.found_folders[i]
+            try:
+                self.delete_folder(folder['path'])
+                print(f"Deleted {folder['path']}")
+                total_deleted_size += folder['size']
+            except OSError as e:
+                logger.error("Error deleting %s: %s", folder['path'], e)
 
         print(f"Total space freed: {get_human_readable_size(total_deleted_size)}")
+
+    def _ask_for_indices(self):
+        total = len(self.found_folders)
+        while True:
+            raw = input("Enter the indices of folders to delete (separated by space): ").strip()
+            if not raw:
+                print("No indices entered.")
+                continue
+            try:
+                indices = [int(part) for part in raw.split()]
+            except ValueError:
+                print("Invalid input — enter space-separated numbers.")
+                continue
+            valid = sorted(set(i for i in indices if 0 <= i < total))
+            invalid = sorted(set(i for i in indices if not (0 <= i < total)))
+            if invalid:
+                print(f"Ignoring out-of-range indices: {invalid}")
+            if not valid:
+                continue
+            return valid
 
     def delete_folder(self, path):
         shutil.rmtree(path)

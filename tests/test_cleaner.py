@@ -114,3 +114,52 @@ def test_version_flag(capsys):
     with pytest.raises(SystemExit):
         build_parser().parse_args(['--version'])
     assert 'depscleaner' in capsys.readouterr().out
+
+
+def test_run_does_not_prompt_when_nothing_found(tmp_path, monkeypatch):
+    monkeypatch.setattr('builtins.input', lambda _: pytest.fail('must not prompt'))
+    DepsCleaner(path=str(tmp_path)).run()
+
+
+def test_run_yes_deletes_selected(tmp_path, monkeypatch, capsys):
+    root = sample_project(tmp_path)
+    monkeypatch.setattr('builtins.input', lambda _: '0')
+    DepsCleaner(path=str(root), yes=True).run()
+    assert not (root / 'app' / 'node_modules').exists()
+    assert (root / 'app' / 'vendor').exists()
+    assert 'Total space freed' in capsys.readouterr().out
+
+
+def test_run_retries_on_invalid_indices(tmp_path, monkeypatch):
+    root = sample_project(tmp_path)
+    inputs = iter(['abc', '0 1'])
+    monkeypatch.setattr('builtins.input', lambda _: next(inputs))
+    DepsCleaner(path=str(root), yes=True).run()
+    assert not (root / 'app' / 'node_modules').exists()
+    assert not (root / 'app' / 'vendor').exists()
+
+
+def test_run_aborts_without_confirmation(tmp_path, monkeypatch):
+    root = sample_project(tmp_path)
+    inputs = iter(['0', 'n'])
+    monkeypatch.setattr('builtins.input', lambda _: next(inputs))
+    DepsCleaner(path=str(root)).run()
+    assert (root / 'app' / 'node_modules').exists()
+
+
+def test_run_dry_run_deletes_nothing(tmp_path, capsys):
+    root = sample_project(tmp_path)
+    DepsCleaner(path=str(root), dry_run=True).run()
+    assert (root / 'app' / 'node_modules').exists()
+    assert (root / 'app' / 'vendor').exists()
+    assert 'Dry run' in capsys.readouterr().out
+
+
+def test_run_rejects_invalid_path(tmp_path, caplog):
+    DepsCleaner(path=str(tmp_path / 'missing')).run()
+    assert 'Invalid directory path' in caplog.text
+
+
+def test_run_rejects_negative_depth(tmp_path, caplog):
+    DepsCleaner(path=str(tmp_path), depth=-1).run()
+    assert 'Invalid depth value' in caplog.text
